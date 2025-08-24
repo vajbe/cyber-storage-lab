@@ -3,7 +3,6 @@ package main
 import (
 	"find-duplicates-files/core"
 	"flag"
-	"fmt"
 	"log"
 )
 
@@ -13,6 +12,6 @@ func main() {
 	if *dir == "dir" {
 		log.Fatal("Directory path is missing.")
 	}
-	fmt.Println(*dir)
+
 	core.TraverseDirectory(*dir)
 }
