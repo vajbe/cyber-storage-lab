@@ -12,6 +12,5 @@ func main() {
 	if *dir == "dir" {
 		log.Fatal("Directory path is missing.")
 	}
-
 	core.TraverseDirectory(*dir)
 }
