@@ -37,6 +37,3 @@ We want to **simulate and test different file system behaviors** in controlled e
 - Retry and error logging strategies.
 
 ---
-
-## 📂 Repo Structure (Planned)
-
