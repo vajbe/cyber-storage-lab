@@ -3,6 +3,9 @@ package core
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"sync"
+	"time"
 )
 
 /* type FileChunk struct {
@@ -11,7 +14,29 @@ import (
 	chunkSize int
 } */
 
-var DEFAULT_CHUNK_SIZE int = 5
+//Processing around 10GB of file
+
+var (
+	DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024
+	wg                 sync.WaitGroup
+)
+
+func ReadByChunks(offset int64, f *os.File, chunkSize int) {
+	buffer := make([]byte, chunkSize)
+	_, err := f.ReadAt(buffer, int64(offset))
+	if err != nil && err.Error() != "EOF" {
+		fmt.Println("Read error:", err)
+	}
+
+	//Wasting CPU stimulating various work
+
+	/* h := sha256.Sum256(buffer[:n])
+	for i := 0; i < 100000; i++ {
+		big.NewInt(0).Exp(big.NewInt(2), big.NewInt(20), nil)
+	}
+	_ = h */
+	time.Sleep(1 * time.Second)
+}
 
 func ReadFile(filePath string) {
 
@@ -32,16 +57,31 @@ func ReadFile(filePath string) {
 
 	fileSize := stat.Size()
 
-	numWorkers := fileSize / int64(DEFAULT_CHUNK_SIZE)
+	numChunks := (fileSize + int64(DEFAULT_CHUNK_SIZE) - 1) / int64(DEFAULT_CHUNK_SIZE)
 
-	fmt.Println("Workers: ", numWorkers, " File Size: ", fileSize)
+	fmt.Println("Chunks:", numChunks, "File Size:", fileSize, "Bytes")
 
-	for i := 1; i <= int(numWorkers); i++ {
-		nextChunk := i * DEFAULT_CHUNK_SIZE
-		buffer := make([]byte, DEFAULT_CHUNK_SIZE)
-		f.ReadAt(buffer, int64(DEFAULT_CHUNK_SIZE))
-		fmt.Println(string(buffer))
-		fmt.Printf("\nFile: %s Chunk Size: %d Processed At: %d\n", filePath, DEFAULT_CHUNK_SIZE, nextChunk)
+	nw := time.Now()
+
+	numCpu := runtime.NumCPU()
+	chunks := make(chan int64, numCpu*8)
+	for i := 0; i < numCpu; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for offset := range chunks {
+				ReadByChunks(offset, f, DEFAULT_CHUNK_SIZE)
+			}
+		}()
 	}
-	fmt.Println()
+
+	for i := int64(0); i < numChunks; i++ {
+		offset := i * int64(DEFAULT_CHUNK_SIZE)
+		chunks <- offset
+	}
+
+	close(chunks)
+	wg.Wait()
+
+	fmt.Print("Time taken: ", time.Since(nw))
 }
